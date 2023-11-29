@@ -18,4 +18,7 @@ export const authMeSuccess = (state: AuthState, action: LoginAction): void => {
   const data = action.payload;
   state.user = data;
   state.isAuthenticated = true;
+
+  //  state.accessToken = data.access_token;
+  //  setSessionStorage("accessToken", data.access_token);
 };

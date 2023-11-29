@@ -1,38 +1,60 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { SplashScreen } from "@components";
 import { TurningLogo } from "@assets";
-import { useAuthMeQuery } from "@services/auth-api";
+import { useLazyAuthMeQuery } from "@services/auth-api";
 import { useDispatch, useSelector } from "@store";
 import { authActions } from "@slices";
 import Image from "next/image";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { Theme } from "@mui/material";
+import toast from "react-hot-toast";
+import { getExpirationTime, isValidToken } from "@utils";
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
+let interval: NodeJS.Timeout | undefined = undefined;
+
 export function AuthInitializer(props: AuthProviderProps): JSX.Element {
-  const matches = useMediaQuery((theme: Theme) => theme.breakpoints.down("sm"));
-  const { refreshToken }: any = useSelector(
-    (state: { auth: any }) => state.auth
-  );
-
-  const { isLoading, isError } = useAuthMeQuery({}, { skip: !refreshToken });
   const { children } = props;
-  const dispatch = useDispatch();
+  const [isInitialized, setIsInitialized] = useState(true);
 
-  if (isLoading) {
+  const dispatch = useDispatch();
+  const { accessToken, refreshToken } = useSelector((state: any) => state.auth);
+  const matches = useMediaQuery((theme: Theme) => theme.breakpoints.down("sm"));
+
+  const [getAuthMe] = useLazyAuthMeQuery();
+
+  useEffect(() => {
+    const authMe = async () => {
+      try {
+        await getAuthMe({ refreshToken }).unwrap();
+      } catch (error: any) {
+        toast.error(error?.data?.message || "Something Went Wrong");
+        dispatch(authActions.logout());
+      }
+    };
+
+    if (isValidToken(accessToken)) {
+      const oneMinBeforeExpTime = getExpirationTime(accessToken); // This is the time 1 Min Before Expiration Time in milliseconds
+      interval = setInterval(() => authMe(), oneMinBeforeExpTime);
+    } else {
+      dispatch(authActions.logout());
+    }
+
+    setIsInitialized(false);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  if (isInitialized) {
     return (
       <SplashScreen>
         <Image src={TurningLogo} alt="" width={matches ? 230 : 450} />
       </SplashScreen>
     );
-  }
-
-  if (isError) {
-    return dispatch(authActions.logout());
   }
 
   return <>{children}</>;
