@@ -41,7 +41,7 @@ export function AuthInitializer(props: AuthProviderProps): JSX.Element {
       const oneMinBeforeExpTime = getExpirationTime(accessToken); // This is the time 1 Min Before Expiration Time in milliseconds
       interval = setInterval(() => authMe(), oneMinBeforeExpTime);
     } else {
-      dispatch(authActions.logout());
+      dispatch(authActions.logout()); // As I used Persistent for Auth Slice that's why i have to remove store on Token InValidation
     }
 
     setIsInitialized(false);
